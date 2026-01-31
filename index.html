@@ -20,6 +20,7 @@
     .cell.flagged { background: #f0ad4e; color: #222; }
     #reset { margin: 20px; padding: 6px 16px; font-size: 16px; }
     #status { margin-top: 10px; }
+    #fireworks-canvas { position: fixed; top:0; left:0; width:100vw; height:100vh; pointer-events: none; z-index:1000; display:none; }
   </style>
 </head>
 <body>
@@ -27,6 +28,7 @@
   <button id="reset">Restart</button>
   <div id="status"></div>
   <div id="board"></div>
+  <canvas id="fireworks-canvas"></canvas>
   <script>
     const SIZE = 10, MINES = 15;
     let board, revealed, flagged, mineCount, gameOver;
@@ -36,6 +38,7 @@
       revealed = Array.from({length: SIZE}, () => Array(SIZE).fill(false));
       flagged = Array.from({length: SIZE}, () => Array(SIZE).fill(false));
       mineCount = MINES; gameOver = false;
+      hideFireworks();
       // Place mines
       let placed = 0;
       while (placed < MINES) {
@@ -68,10 +71,11 @@
         } else if(flagged[r][c]) {
           cell.classList.add('flagged');
           cell.textContent='🚩';
-        } else {
+        } 
+        if(!revealed[r][c]) {
           cell.addEventListener('contextmenu', e => {e.preventDefault(); flag(r,c);});
           cell.addEventListener('click',()=>reveal(r,c));
-          // Long press for mobile - flag on long tap
+          // Long press for mobile - flag on long tap (toggle)
           let pressTimer;
           cell.addEventListener('touchstart',function(e){
             pressTimer = setTimeout(() => { flag(r,c); }, 500);
@@ -100,7 +104,7 @@
       revealed[r][c]=true;
       if(board[r][c]==='M'){ gameOver=true; revealAll(); }
       else if(board[r][c]===0) flood(r,c);
-      if(checkWin()) { gameOver=true; }
+      if(checkWin()) { gameOver=true; showFireworks(); }
       renderBoard();
     }
     function revealAll(){
@@ -122,6 +126,56 @@
     }
     document.getElementById('reset').onclick=()=>{createBoard();renderBoard();}
     createBoard();renderBoard();
+
+    // --- Fireworks animation ---
+    function showFireworks() {
+      const canvas = document.getElementById('fireworks-canvas');
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      canvas.style.display = 'block';
+      let ctx = canvas.getContext('2d');
+      let particles = [];
+      function randomColor() {
+        const colors = ['#ff3', '#f39', '#3cf', '#fc3', '#3fa', '#f66', '#8ff'];
+        return colors[Math.floor(Math.random()*colors.length)];
+      }
+      for(let i=0;i<6;i++) {
+        let x = Math.random()*canvas.width, y = canvas.height*0.6;
+        let color = randomColor();
+        for(let j=0;j<60;j++) {
+          let angle = 2*Math.PI * j/60, speed=2+2*Math.random();
+          particles.push({x,y,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,color,life:60});
+        }
+      }
+      function animate() {
+        ctx.globalAlpha = 0.25;
+        ctx.fillStyle = '#222';
+        ctx.fillRect(0,0,canvas.width,canvas.height);
+        ctx.globalAlpha = 1.0;
+        let alive = false;
+        for(const p of particles) {
+          if(p.life>0) {
+            alive=true;
+            ctx.beginPath();
+            ctx.arc(p.x,p.y,2,0,2*Math.PI);
+            ctx.fillStyle=p.color;
+            ctx.fill();
+            p.x += p.vx; p.y += p.vy;
+            p.vy += 0.06; // gravity
+            p.life--;
+          }
+        }
+        if(alive) requestAnimationFrame(animate);
+        else hideFireworks();
+      }
+      animate();
+    }
+    function hideFireworks(){
+      const canvas = document.getElementById('fireworks-canvas');
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      canvas.style.display = 'none';
+    }
   </script>
 </body>
 </html>
