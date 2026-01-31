@@ -13,6 +13,7 @@
       border: none; font-size: 20px; cursor: pointer; outline: none;
       display: flex; align-items: center; justify-content: center;
       user-select: none;
+      touch-action: manipulation;
     }
     .cell.revealed { background: #ccc; color: #222; cursor: default; }
     .cell.mine { background: #d9534f; color: #fff; }
@@ -70,12 +71,23 @@
         } else {
           cell.addEventListener('contextmenu', e => {e.preventDefault(); flag(r,c);});
           cell.addEventListener('click',()=>reveal(r,c));
+          // Long press for mobile - flag on long tap
+          let pressTimer;
+          cell.addEventListener('touchstart',function(e){
+            pressTimer = setTimeout(() => { flag(r,c); }, 500);
+          });
+          cell.addEventListener('touchend',function(e){
+            clearTimeout(pressTimer);
+          });
+          cell.addEventListener('touchmove',function(e){
+            clearTimeout(pressTimer);
+          });
         }
         b.appendChild(cell);
       }
       document.getElementById('status').textContent = gameOver
         ? (checkWin() ? '🎉 You win!' : '💥 Game Over')
-        : 'Mines: '+mineCount+' | Right-click to flag';
+        : 'Mines: '+mineCount+' | לחיצה ארוכה במובייל/קליק ימני מסמן דגל';
     }
     function flag(r,c){
       if(revealed[r][c]||gameOver) return;
