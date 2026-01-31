@@ -20,7 +20,7 @@
     .cell.flagged { background: #f0ad4e; color: #222; }
     #reset { margin: 20px; padding: 6px 16px; font-size: 16px; }
     #status { margin-top: 10px; }
-    #fireworks-canvas { position: fixed; top:0; left:0; width:100vw; height:100vh; pointer-events: none; z-index:1000; display:none; }
+    #fireworks-canvas, #rain-canvas { position: fixed; top:0; left:0; width:100vw; height:100vh; pointer-events: none; z-index:1000; display:none; }
   </style>
 </head>
 <body>
@@ -29,16 +29,17 @@
   <div id="status"></div>
   <div id="board"></div>
   <canvas id="fireworks-canvas"></canvas>
+  <canvas id="rain-canvas"></canvas>
   <script>
     const SIZE = 10, MINES = 15;
-    let board, revealed, flagged, mineCount, gameOver;
+    let board, revealed, flagged, mineCount, gameOver, gameWon;
 
     function createBoard() {
       board = Array.from({length: SIZE}, () => Array(SIZE).fill(0));
       revealed = Array.from({length: SIZE}, () => Array(SIZE).fill(false));
       flagged = Array.from({length: SIZE}, () => Array(SIZE).fill(false));
-      mineCount = MINES; gameOver = false;
-      hideFireworks();
+      mineCount = MINES; gameOver = false; gameWon = false;
+      hideFireworks(); hideRain();
       // Place mines
       let placed = 0;
       while (placed < MINES) {
@@ -75,7 +76,7 @@
         if(!revealed[r][c]) {
           cell.addEventListener('contextmenu', e => {e.preventDefault(); flag(r,c);});
           cell.addEventListener('click',()=>reveal(r,c));
-          // Long press for mobile - flag on long tap (toggle)
+          // Long press for mobile - toggle flag
           let pressTimer;
           cell.addEventListener('touchstart',function(e){
             pressTimer = setTimeout(() => { flag(r,c); }, 500);
@@ -89,9 +90,13 @@
         }
         b.appendChild(cell);
       }
-      document.getElementById('status').textContent = gameOver
-        ? (checkWin() ? '🎉 You win!' : '💥 Game Over')
-        : 'Mines: '+mineCount+' | לחיצה ארוכה במובייל/קליק ימני מסמן דגל';
+      if (gameWon) {
+        document.getElementById('status').textContent = '🎉 You win!';
+      } else if (gameOver) {
+        document.getElementById('status').textContent = 'You lost, try again';
+      } else {
+        document.getElementById('status').textContent = 'Mines: '+mineCount+' | לחיצה ארוכה במובייל/קליק ימני מסמן דגל';
+      }
     }
     function flag(r,c){
       if(revealed[r][c]||gameOver) return;
@@ -102,9 +107,9 @@
     function reveal(r,c){
       if(flagged[r][c]||revealed[r][c]||gameOver)return;
       revealed[r][c]=true;
-      if(board[r][c]==='M'){ gameOver=true; revealAll(); }
+      if(board[r][c]==='M'){ gameOver=true; gameWon=false; revealAll(); showRain(); }
       else if(board[r][c]===0) flood(r,c);
-      if(checkWin()) { gameOver=true; showFireworks(); }
+      if(!gameOver && checkWin()) { gameOver=true; gameWon=true; showFireworks(); }
       renderBoard();
     }
     function revealAll(){
@@ -129,6 +134,7 @@
 
     // --- Fireworks animation ---
     function showFireworks() {
+      if (!gameWon) return;
       const canvas = document.getElementById('fireworks-canvas');
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
@@ -172,6 +178,47 @@
     }
     function hideFireworks(){
       const canvas = document.getElementById('fireworks-canvas');
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      canvas.style.display = 'none';
+    }
+
+    // --- Simple Rain animation ---
+    function showRain() {
+      if (!gameOver || gameWon) return;
+      const canvas = document.getElementById('rain-canvas');
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      canvas.style.display = 'block';
+      let ctx = canvas.getContext('2d');
+      let drops = Array.from({length: 70},()=>({
+        x: Math.random()*canvas.width,
+        y: Math.random()*canvas.height*0.7,
+        len: 8+Math.random()*12,
+        sy: 4+Math.random()*5
+      }));
+      function animate() {
+        ctx.globalAlpha=0.3;
+        ctx.fillStyle='#222';
+        ctx.fillRect(0,0,canvas.width,canvas.height);
+        ctx.globalAlpha=1.0;
+        ctx.strokeStyle='#3af';
+        ctx.lineWidth=2;
+        for(const d of drops) {
+          ctx.beginPath();
+          ctx.moveTo(d.x,d.y);
+          ctx.lineTo(d.x,d.y+d.len);
+          ctx.stroke();
+          d.y += d.sy;
+          if(d.y>d.canvasHeight) d.y=-20;
+        }
+        if(gameOver&&!gameWon) requestAnimationFrame(animate);
+        else hideRain();
+      }
+      animate();
+    }
+    function hideRain(){
+      const canvas = document.getElementById('rain-canvas');
       const ctx = canvas.getContext('2d');
       ctx.clearRect(0,0,canvas.width,canvas.height);
       canvas.style.display = 'none';
