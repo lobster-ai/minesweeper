@@ -21,6 +21,7 @@
     .cell.mine { background: #d9534f; color: #fff; }
     .cell.flagged { background: #f0ad4e; color: #222; }
     .cell.wrong { background: #b85c00; color: #fff; }
+    .cell.pressing { transform: scale(0.94); filter: brightness(1.15); }
     #reset { margin: 20px; padding: 6px 16px; font-size: 16px; }
     #status { margin-top: 10px; }
     #fireworks-canvas, #rain-canvas { position: fixed; top:0; left:0; width:100vw; height:100vh; pointer-events: none; z-index:1000; display:none; }
@@ -36,6 +37,12 @@
   <script>
     const SIZE = 10, MINES = 15;
     let board, revealed, flagged, mineCount, gameOver, gameWon;
+
+    function haptic(ms=25) {
+      try {
+        if (navigator.vibrate) navigator.vibrate(ms);
+      } catch (_) {}
+    }
 
     function createBoard() {
       board = Array.from({length: SIZE}, () => Array(SIZE).fill(0));
@@ -96,20 +103,32 @@
           cell.addEventListener('click',()=>reveal(r,c));
           // Long press for mobile - toggle flag
           let pressTimer;
-          // Mobile: long-press toggles flag; short tap reveals.
+          // Mobile: long-press toggles flag (with feedback); short tap reveals.
           // We prevent the synthetic click by calling preventDefault on touchend.
           let longPressed = false;
           cell.addEventListener('touchstart',function(){
             longPressed = false;
-            pressTimer = setTimeout(() => { longPressed = true; flag(r,c); }, 500);
+            cell.classList.add('pressing');
+            // small "start" haptic so the user feels the press registered
+            haptic(10);
+            pressTimer = setTimeout(() => {
+              longPressed = true;
+              flag(r,c);
+              // stronger haptic when the long-press action actually triggers
+              haptic(35);
+              // visual confirmation
+              cell.classList.remove('pressing');
+            }, 500);
           }, { passive: true });
           cell.addEventListener('touchend',function(e){
             clearTimeout(pressTimer);
+            cell.classList.remove('pressing');
             e.preventDefault();
             if (!longPressed) reveal(r,c);
           }, { passive: false });
           cell.addEventListener('touchmove',function(){
             clearTimeout(pressTimer);
+            cell.classList.remove('pressing');
           }, { passive: true });
         }
         b.appendChild(cell);
