@@ -96,20 +96,21 @@
           cell.addEventListener('click',()=>reveal(r,c));
           // Long press for mobile - toggle flag
           let pressTimer;
-          // iOS/Safari can try to select text or show callout on long-press.
-          // Prevent default touch behavior and implement our own long-press.
-          cell.addEventListener('touchstart',function(e){
-            e.preventDefault();
-            pressTimer = setTimeout(() => { flag(r,c); }, 500);
-          }, { passive: false });
+          // Mobile: long-press toggles flag; short tap reveals.
+          // We prevent the synthetic click by calling preventDefault on touchend.
+          let longPressed = false;
+          cell.addEventListener('touchstart',function(){
+            longPressed = false;
+            pressTimer = setTimeout(() => { longPressed = true; flag(r,c); }, 500);
+          }, { passive: true });
           cell.addEventListener('touchend',function(e){
-            e.preventDefault();
             clearTimeout(pressTimer);
-          }, { passive: false });
-          cell.addEventListener('touchmove',function(e){
             e.preventDefault();
-            clearTimeout(pressTimer);
+            if (!longPressed) reveal(r,c);
           }, { passive: false });
+          cell.addEventListener('touchmove',function(){
+            clearTimeout(pressTimer);
+          }, { passive: true });
         }
         b.appendChild(cell);
       }
