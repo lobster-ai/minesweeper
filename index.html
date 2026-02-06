@@ -213,7 +213,14 @@
         len: 8+Math.random()*12,
         sy: 4+Math.random()*5
       }));
-      function animate() {
+      const startedAt = performance.now();
+      const DURATION_MS = 3500;
+      function animate(now) {
+        // Auto-stop after a short "sad rain" effect, or when game state changes.
+        if (!gameOver || gameWon || (now - startedAt) > DURATION_MS) {
+          hideRain();
+          return;
+        }
         ctx.globalAlpha=0.3;
         ctx.fillStyle='#222';
         ctx.fillRect(0,0,canvas.width,canvas.height);
@@ -228,10 +235,9 @@
           d.y += d.sy;
           if(d.y > canvas.height) d.y = -20;
         }
-        if(gameOver&&!gameWon) requestAnimationFrame(animate);
-        else hideRain();
+        requestAnimationFrame(animate);
       }
-      animate();
+      requestAnimationFrame(animate);
     }
     function hideRain(){
       const canvas = document.getElementById('rain-canvas');
