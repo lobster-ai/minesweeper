@@ -25,6 +25,23 @@
     #reset { margin: 20px; padding: 6px 16px; font-size: 16px; }
     #status { margin-top: 10px; }
     #fireworks-canvas, #rain-canvas { position: fixed; top:0; left:0; width:100vw; height:100vh; pointer-events: none; z-index:1000; display:none; }
+    #toast {
+      position: fixed;
+      left: 50%;
+      bottom: 18px;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.78);
+      color: #fff;
+      padding: 10px 14px;
+      border-radius: 10px;
+      font-size: 14px;
+      max-width: 85vw;
+      z-index: 1200;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 180ms ease;
+    }
+    #toast.show { opacity: 1; }
   </style>
 </head>
 <body>
@@ -32,16 +49,27 @@
   <button id="reset">Restart</button>
   <div id="status"></div>
   <div id="board"></div>
+  <div id="toast"></div>
   <canvas id="fireworks-canvas"></canvas>
   <canvas id="rain-canvas"></canvas>
   <script>
     const SIZE = 10, MINES = 15;
     let board, revealed, flagged, mineCount, gameOver, gameWon;
+    let toastTimer;
 
     function haptic(ms=25) {
       try {
         if (navigator.vibrate) navigator.vibrate(ms);
       } catch (_) {}
+    }
+
+    function showToast(msg, ms=1400) {
+      const el = document.getElementById('toast');
+      if (!el) return;
+      el.textContent = msg;
+      el.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => el.classList.remove('show'), ms);
     }
 
     function createBoard() {
@@ -99,7 +127,7 @@
           cell.textContent='🚩';
         } 
         if(!revealed[r][c]) {
-          cell.addEventListener('contextmenu', e => {e.preventDefault(); flag(r,c);});
+          cell.addEventListener('contextmenu', e => {e.preventDefault(); flag(r,c,'rightclick');});
           cell.addEventListener('click',()=>reveal(r,c));
           // Long press for mobile - toggle flag
           let pressTimer;
@@ -113,7 +141,7 @@
             haptic(10);
             pressTimer = setTimeout(() => {
               longPressed = true;
-              flag(r,c);
+              flag(r,c,'longpress');
               // stronger haptic when the long-press action actually triggers
               haptic(35);
               // visual confirmation
@@ -141,10 +169,27 @@
         document.getElementById('status').textContent = 'Mines: '+mineCount+' | לחיצה ארוכה במובייל/קליק ימני מסמן דגל';
       }
     }
-    function flag(r,c){
+    function flag(r,c,source='generic'){
       if(revealed[r][c]||gameOver) return;
-      flagged[r][c]=!flagged[r][c];
-      mineCount+=flagged[r][c]? -1:1;
+
+      const currentlyFlagged = flagged[r][c];
+      // If trying to add a new flag but none left, block it.
+      if (!currentlyFlagged && mineCount <= 0) {
+        showToast('עברתי את כמות המוקשים');
+        return;
+      }
+
+      flagged[r][c]=!currentlyFlagged;
+      mineCount += flagged[r][c] ? -1 : 1;
+
+      // Clamp just in case
+      mineCount = Math.max(0, Math.min(MINES, mineCount));
+
+      // Explicit success indicator for long-press.
+      if (source === 'longpress') {
+        showToast(flagged[r][c] ? '🚩 דגל סומן' : '✅ דגל הוסר');
+      }
+
       renderBoard();
     }
     function reveal(r,c){
